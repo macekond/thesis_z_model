@@ -1,0 +1,2292 @@
+\begin{zsection}
+  \SECTION Types \parents standard\_toolkit
+\end{zsection}
+
+\begin{zed}
+  BOOL ::=  True | False 
+\end{zed}
+
+\begin{zed}
+	[LABEL]
+\end{zed}
+
+\begin{zsection}
+  \SECTION ApplicationModel \parents Types
+\end{zsection}
+
+\begin{zed}
+  CARDINALITY ::=  One | Many \\
+\end{zed}
+
+\begin{zed}
+	[ATYPE]
+\end{zed}
+
+\begin{schema}{CLASS}
+	label : LABEL
+\end{schema}
+
+\begin{axdef}
+	NULLCLASS : CLASS
+\end{axdef}
+
+\begin{schema}{ATTRIBUTE}  
+  optional : BOOL \\
+  upper : CARDINALITY \\
+  type : ATYPE  \\
+  label : LABEL \\
+\end{schema}
+
+\begin{schema}{ATTRIBUTEOfCLASS}
+  class : CLASS \\
+  attribute : ATTRIBUTE
+\end{schema}
+
+\begin{schema}{ASSOCIATION}
+  label : LABEL \\
+  upper : CARDINALITY \\
+  optional : BOOL \\
+  source : CLASS \\
+  target : CLASS
+\end{schema}
+
+\begin{schema}{INHERITANCE}
+  parent: CLASS \\
+  child : CLASS \\
+\end{schema}
+
+\begin{schema}{ENTITIES}
+  classes : \power CLASS \\
+  attributes : \power ATTRIBUTE \\
+  associations : \power ASSOCIATION \\
+  attributesOfClasses : \power ATTRIBUTEOfCLASS \\
+  inheritance : \power INHERITANCE 
+\end{schema}
+
+\begin{axdef}
+	ERRENTITIES : ENTITIES
+\end{axdef}
+
+
+\begin{zsection}
+  \SECTION ApplicationHelpers \parents ApplicationModel
+\end{zsection}
+
+\begin{schema}{initEntity}
+  c! : CLASS \\
+  l? : LABEL
+\where
+  c!.label = l? \\
+\end{schema}
+
+\begin{schema}{initEntities}
+  e? : ENTITIES
+\where
+  e?.classes = \emptyset \\
+  e?.attributes = \emptyset \\
+  e?.associations = \emptyset \\
+  e?.attributesOfClasses = \emptyset \\
+  e?.inheritance = \emptyset  
+\end{schema}
+
+
+\begin{schema}{initAttribute}
+    label? : LABEL \\
+    upper? : CARDINALITY \\
+    optional? : BOOL \\
+    p! : ATTRIBUTE 
+  \where
+    p!.label = label? \\
+    p!.upper = upper? \\
+    p!.optional = optional? \\
+    p!.type \in ATYPE
+\end{schema}
+
+\begin{schema}{initAssociation}
+  label? : LABEL \\
+  upper? : CARDINALITY \\
+  optional? : BOOL \\
+  source?, target? : CLASS \\
+  a! : ASSOCIATION 
+\where
+  a!.label = label? \\
+  a!.upper = upper? \\
+  a!.optional = optional? \\
+  a!.source = source? \\ 
+  a!.target = target? 
+\end{schema}
+
+\begin{schema}{initInheritance}
+  i! : INHERITANCE \\
+  parent, child : CLASS
+  \where
+  i!.parent = parent \\
+  i!.child = child \\
+\end{schema}
+
+\begin{schema}{initAttributeOfClass}
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  poc! : ATTRIBUTEOfCLASS
+\where
+  poc!.class = c? \\
+  poc!.attribute = p?
+\end{schema}
+
+\begin{axdef}
+  attributesOf : CLASS \cross ENTITIES \fun \power ATTRIBUTE 
+\where
+  \forall c : CLASS; e : ENTITIES @ \\
+  \;\;\;  attributesOf(c, e) = \{ p : ATTRIBUTE | \\
+  \;\;\;\;\;\;  p \in e.attributes \land \exists poc : ATTRIBUTEOfCLASS @ \\
+  \;\;\;\;\;\;\;\;\; poc.class = c \land poc.attribute = p   \}
+\end{axdef}
+
+\begin{axdef}
+  children : CLASS \cross ENTITIES \fun \power CLASS 
+\where
+  \forall c_p : CLASS; s : ENTITIES @ \\
+   \;\;\;   children(c_p, s) = \{ c : CLASS | \\
+   \;\;\;\;\;\; \exists i : INHERITANCE @ i.parent = c_p \land i.child= c \land \\
+   \;\;\;\;\;\;\;\;\; i \in s.inheritance \}
+\end{axdef}
+
+\begin{axdef}
+  parentOf : CLASS \cross ENTITIES \fun CLASS  
+\where
+  \forall c_c, c_p : CLASS; s : ENTITIES @  \\
+   \;\;\;   parentOf(c_c, s) =  c_p   \iff \exists i : INHERITANCE @ \\ 
+    \;\;\;   \;\;\;    i.parent = c_p \land i.child = c_c \lor \\
+   \;\;\;   parentOf(c_c, s) = NULLCLASS \iff \forall i : INHERITANCE @ \\
+    \;\;\;   \;\;\;    i.parent = c_p \land i.child \neq c_c   
+\end{axdef}
+
+\begin{axdef}
+	childParentRelation : CLASS \cross ENTITIES \fun CLASS \fun CLASS
+\where
+	\forall c_c, c_p : CLASS; s : ENTITIES @  \\
+		childParentRelation(c_c, s) = \{c_c \mapsto c_p\} \iff c_p =  parentOf(c_c, s)
+\end{axdef}
+
+\begin{axdef}
+	parentChildRelation : CLASS \cross ENTITIES \fun \power CLASS \fun CLASS
+\where
+	\forall c_c, c_p : CLASS; s : ENTITIES @  \\
+		c_c \mapsto c_p  \in childParentRelation(c_p, s) \iff c_p =  parentOf(c_c, s)
+\end{axdef}
+
+\begin{axdef}
+  isInheritanceCyclical : CLASS \cross ENTITIES \fun BOOL
+\where
+      \forall c : CLASS; s : ENTITIES @ \\
+\;\;\;  isInheritanceCyclical(c,s) = True \iff \\
+\;\;\;\;\;\; \exists par == childParentRelation(c,s) @ c \in \ran (par\plus)  \lor \\ 
+\;\;\;  isInheritanceCyclical(c,s) = False \iff \\
+\;\;\;\;\;\; \forall par == childParentRelation(c,s) @ c \notin \ran (par\plus)
+\end{axdef}
+
+\begin{axdef}
+  associationsTargeting : CLASS \cross ENTITIES \fun  \power ASSOCIATION 
+\where
+  \forall c : CLASS; s : ENTITIES; r : \power ASSOCIATION @ \\
+\;\;\;    associationsTargeting(c, s) = \\
+\;\;\;\;\;\; \{a : ASSOCIATION | a \in s.associations \land a.target = c \} 
+\end{axdef}
+
+\begin{axdef}
+  associationsOf : CLASS \cross ENTITIES \fun \power ASSOCIATION
+\where
+  \forall c : CLASS; s : ENTITIES; as :  \power ASSOCIATION @ \\
+  \;\;\;    associationsOf(c, s) = \\ 
+  \;\;\;\;\;\; \{ a : ASSOCIATION | a \in s.associations \land
+        c = a.source \}
+\end{axdef}
+
+\begin{axdef}
+  isReferenced : CLASS \cross ENTITIES \fun \power CLASS
+\where
+  \forall c: CLASS; e : ENTITIES @
+\;\;\;    isReferenced(c, e) = \\
+\;\;\;\;\;\;  \{ cr : CLASS | cr \in e.classes \land \exists a : ASSOCIATION @ \\
+\;\;\;\;\;\;\;\;\; a.source = cr \land a.target = c \}
+\end{axdef}
+
+\begin{schema}{addEntityEL}
+  \Delta ENTITIES \\
+  c? : CLASS
+\where
+  \forall c : CLASS @ \\
+  \;\;\; c \in classes \implies c.label \neq c?.label \\
+  attributesOf(c?, \theta(ENTITIES)) = \emptyset \\
+  classes' = classes \cup \{ c? \}
+\end{schema}
+
+\begin{schema}{removeEntityEL}
+  \Delta ENTITIES \\
+  c? : CLASS
+\where
+  c? \in classes \\ 
+  children(c?, \theta(ENTITIES)) = \emptyset \\ %has no children
+  associationsTargeting(c?, \theta(ENTITIES)) = \emptyset \\ % is not referenced 
+  classes' = classes \setminus \{ c? \}
+\end{schema}
+
+\begin{schema}{addAttributeEL}
+  \Delta ENTITIES \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  poc : ATTRIBUTEOfCLASS 
+\where
+  c? \in classes \\
+  \{ p : ATTRIBUTE | p \in attributesOf(c?, \theta(ENTITIES)) \land \\ \;\;\; p.label = p?.label \} = \emptyset \\
+  attributes' = attributes \cup \{ p? \} \\
+  initAttributeOfClass[poc/poc!] \\
+  attributesOfClasses' = attributesOfClasses \cup \{ poc \} 
+\end{schema}
+
+\begin{schema}{removeAttributeEL}
+  \Delta ENTITIES \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  poc : ATTRIBUTEOfCLASS 
+\where
+  c? \in classes \\
+  p? \in attributes \\
+  poc \in attributesOfClasses \\
+  poc.class = c? \\
+  poc.attribute = p? \\ 
+  attributesOfClasses' = attributesOfClasses \setminus \{ poc \}\\
+  attributes' = attributes \setminus \{ p? \} \\
+\end{schema}
+
+ \begin{schema}{addAssociationEL}
+  \Delta ENTITIES \\
+  a? : ASSOCIATION 
+\where
+  \forall a : ASSOCIATION @ \\
+  \;\;\; a \in associations \implies a.label \neq  a?.label \\
+  a?.source \in classes \\
+  a?.target \in classes \\
+  associations' = associations \cup \{ a? \}
+\end{schema}
+
+\begin{schema}{removeAssociationEL}
+  \Delta ENTITIES \\
+  a? : ASSOCIATION
+\where
+  a? \in associations \\
+  associations' = associations \setminus \{ a? \}
+\end{schema}
+
+\begin{schema}{addEntityParentEL}
+  \Delta ENTITIES \\
+  i? : INHERITANCE
+\where
+ parentOf(i?.child, \theta(ENTITIES)) = NULLCLASS \\ %has no parent
+ children(i?.child, \theta(ENTITIES)) = \emptyset \\
+ \forall p_c, p_p : ATTRIBUTE @ \\
+ \;\;\; p_c \in attributesOf(i?.child, \theta(ENTITIES)) \land \\
+ \;\;\; p_p \in attributesOf(i?.parent, \theta(ENTITIES)) \implies \\
+ \;\;\; p_p.label \neq p_c.label \\
+  \forall a_c, a_p : ASSOCIATION @ \\
+ \;\;\; a_c.source = i?.child \land a_p.source = i?.parent \implies a_p.label \neq a_c.label \\
+ inheritance' = inheritance \cup \{ i? \}
+\end{schema}
+
+\begin{schema}{removeEntityParentEL}
+  \Delta ENTITIES \\
+  c? : CLASS 
+\where
+  \exists i : INHERITANCE @ \\
+  \;\;\; i \in inheritance \land i.child = c? \land \\ 
+  \;\;\; inheritance' = inheritance' \setminus \{ i \}
+\end{schema}
+
+\begin{schema}{pushAttributeDownEL}
+  \Delta ENTITIES \\
+  \Delta CLASS \\
+  p? : ATTRIBUTE \\
+  % inner declarations
+  poc : ATTRIBUTEOfCLASS \\
+  c : CLASS 
+\where
+  c = \theta(CLASS) \\
+  c \in classes \\
+  p? \in attributesOf(c, \theta(ENTITIES)) \\
+  [|\forall c' : CLASS @  \\
+\;\;\; c' \in children(c, \theta(ENTITIES)) \implies addAttributeEL[c'/c?]]  \pipe \\
+  removeAttributeEL[c/c?]
+\end{schema}
+
+\begin{schema}{pushAttributeDownToClassEL}
+  \Delta ENTITIES \\
+  \Delta CLASS \\
+  \Delta CLASS \\
+  p? : ATTRIBUTE \\
+  a, a', b, b' : CLASS \\
+  poc : ATTRIBUTEOfCLASS 
+\where
+  a = \theta(CLASS) \\
+  a' = \theta(CLASS)' \\
+  a \in classes \\
+  b = \theta(CLASS) \\
+  b' = \theta(CLASS)' \\
+  b \in classes \\
+  a = parentOf(b, \theta(ENTITIES)) \\
+  p? \in attributesOf(a, \theta(ENTITIES)) \\
+  addAttributeEL[b/c?] \\
+  removeAttributeEL[a/c?]
+\end{schema}
+
+\begin{schema}{pullAttributeUpEL}
+  \Delta ENTITIES \\
+  \Delta CLASS \\
+  p? : ATTRIBUTE \\
+  % inner declarations
+  poc : ATTRIBUTEOfCLASS \\ 
+  c, d : CLASS
+\where
+  p? \in attributes \\
+  d = parentOf(\theta(CLASS), \theta(ENTITIES)) \\
+  c = \theta(CLASS) \\
+  addAttributeEL[d/c?] \pipe removeAttributeEL[c/c?]
+\end{schema}
+
+ \begin{schema}{pullCommonAttributeUpEL}
+  \Delta ENTITIES \\
+  p? : ATTRIBUTE \\
+  c_c? : CLASS \\
+  % inner declarations
+  poc : ATTRIBUTEOfCLASS \\
+  d : CLASS 
+\where
+  \exists d == parentOf(c_c?, \theta(ENTITIES)) @ \\
+  \;\;\; \exists cs == children(d,\theta(ENTITIES)) @ \\
+    \;\;\;\;\;\; \forall c : CLASS @ \\
+    \;\;\;\;\;\;\;\;\; c \in cs \iff c \in children(d,\theta(ENTITIES)) \land \\ 
+    \;\;\;\;\;\;\;\;\; p? \in attributesOf(c, \theta(ENTITIES)) \land \\
+    \;\;\;\;\;\;\;\;\; removeAttributeEL[c/c?] \\
+    \;\;\; addAttributeEL[d/c?]
+\end{schema}
+
+\begin{zsection}
+  \SECTION ApplicationInvariants \parents ApplicationModel, ApplicationHelpers
+\end{zsection}
+
+\begin{axdef}
+\where
+   % different CLASSes have different names 
+  \forall e : ENTITIES; c_1, c_2 : CLASS @ \\
+  \;\;\;   c_1 \in e.classes \land c_2 \in e.classes \land c_1.label = c_2.label \implies c_1 = c_2 \\
+\end{axdef}
+
+\begin{axdef} 
+\where
+  % attributes has unique names in the CLASS
+  \forall e : ENTITIES; poc_1, poc_2 : ATTRIBUTEOfCLASS @ \\
+  \;\;\;      poc_1 \in e.attributesOfClasses \land poc_2 \in e.attributesOfClasses \land \\ 
+  \;\;\;      poc_1.class = poc_2.class \land poc_1 \neq poc_2 \implies \\
+  \;\;\;  \;\;\;      (poc_1.attribute).label \neq (poc_2.attribute).label \\
+\end{axdef}
+
+\begin{axdef}
+\where
+  % ASSOCIATIONs name are unique
+  \forall e : ENTITIES; a_1, a_2 : ASSOCIATION @ \\
+    \;\;\;  a_1 \in e.associations \land a_2 \in e.associations \land \\ 
+    \;\;\;  a_1.label = a_2.label \implies a_1 = a_2 \lor a_1.source \neq a_2.source \\
+\end{axdef}
+
+\begin{axdef}
+\where
+  %not same attribute names in hierarchy
+  \forall e : ENTITIES;  c_1, c_2 : CLASS; par : \power CLASS; p_1 : ATTRIBUTE @ \\
+  \;\;\;  par = \ran (childParentRelation(c_1, e) \plus) \land c_2 \in par \land c_1 \in e.classes \implies \\
+  \;\;\; \;\;\;   p_1 \in attributesOf(c_1, e) \land p_1 \notin attributesOf(c_2, e) 
+\end{axdef}
+
+\begin{axdef}
+\where
+	%not same association names in hierarchy
+   \forall e : ENTITIES; c_1, c_2 : CLASS; par : \power CLASS; a_1 : ASSOCIATION @ \\
+   \;\;\;    par = \ran (childParentRelation(c_1, e)\plus) \land c_2 \in par \land c_1 \in e.classes \implies \\
+   \;\;\; \;\;\;  a_1 \in associationsOf(c_1, e) \land a_1 \notin associationsOf(c_2, e)
+\end{axdef}
+
+\begin{axdef}
+\where
+  % all attributes are owned by a CLASS 
+  \forall e : ENTITIES;  p : ATTRIBUTE @ \\
+  \;\;\;      p \in e.attributes \iff \exists poc : ATTRIBUTEOfCLASS @ \\
+  \;\;\;  \;\;\;        poc \in e.attributesOfClasses \land  p = poc.attribute \\
+  % owning CLASS is an Software's CLASS
+  \forall e : ENTITIES;  c : CLASS; poc : ATTRIBUTEOfCLASS @ \\
+  \;\;\;      c = poc.class \implies c \in e.classes \\  
+\end{axdef}
+
+\begin{axdef}
+\where
+  % source and target of an ASSOCIATION are Software's CLASSes
+  \forall  e : ENTITIES; a : ASSOCIATION @ \\
+  \;\;\;      a \in e.associations \implies \exists c_s, c_t : CLASS @ \\
+  \;\;\;  \;\;\;        c_s = a.source \land c_t = a.target \land c_s \in e.classes \land c_t \in e.classes \\
+\end{axdef}
+
+\begin{axdef}
+\where
+  % parent and child are Software's CLASSes
+  \forall e : ENTITIES; i : INHERITANCE @  \\
+  \;\;\;    i \in e.inheritance \implies \exists c_p, c_c : CLASS @ \\
+  \;\;\;\;\;\;      c_p \in e.classes \land c_c \in e.classes \land c_p = i.parent \land c_c = i.child \\
+\end{axdef}
+
+\begin{axdef} 
+\where
+  % only single inheritance 
+  \forall e : ENTITIES; i_1, i_2 : INHERITANCE @  \\
+  \;\;\;    i_1 \in e.inheritance \land i_2 \in e.inheritance \land i_1.child = i_2.child \\ 
+  \;\;\;    \land i_1.parent = i_2.parent \implies i_1 = i_2
+\end{axdef}
+
+\begin{axdef}
+\where
+  % not cyclical inheritance
+  \forall e : ENTITIES;  c : CLASS @ \\
+  \;\;\;  c \in e.classes \implies isInheritanceCyclical(c, e) = False
+\end{axdef}
+
+\begin{zsection}
+  \SECTION DatabaseModel \parents Types
+\end{zsection}
+
+\begin{zed}
+	[ DTYPE ]
+\end{zed}
+
+\begin{zed}
+  [ VALUE ]
+\end{zed}
+
+\begin{zed}
+	CONSTRAINT ::= NOTNULL | UNIQUE \\
+\end{zed}
+
+\begin{schema}{COLUMN}
+  constraints : \power CONSTRAINT \\
+  type : DTYPE \\
+  label : LABEL
+\end{schema}
+
+\begin{schema}{COLUMNVALUE}
+  definition : COLUMN \\
+  value : VALUE
+\end{schema}
+
+\begin{schema}{PRIMARYKEY}
+  name : LABEL
+\end{schema}
+
+\begin{schema}{PRIMARYKEYVALUE}
+  definition : PRIMARYKEY \\
+  value : \num
+\end{schema}
+
+\begin{schema}{TABLESCHEMA}
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  columns : \power COLUMN \\
+\end{schema}
+
+\begin{schema}{FOREIGNKEY}
+  label : LABEL \\
+  constraints : \power CONSTRAINT \\
+  source : TABLESCHEMA \\
+  reference : TABLESCHEMA
+\end{schema}
+
+\begin{schema}{FOREIGNKEYVALUE}
+  definition : FOREIGNKEY \\
+  value : \num
+\end{schema}
+
+\begin{schema}{DATAVALUES}
+  definition : TABLESCHEMA \\
+  key : PRIMARYKEYVALUE \\
+  colValues : \power COLUMNVALUE \\
+  foreignkeyValues : \power FOREIGNKEYVALUE
+\end{schema}
+
+\begin{axdef}
+  NULLDATAVALUE : DATAVALUES
+\end{axdef}
+
+\begin{schema}{SEQUENCE}
+  current : \num
+\end{schema}
+
+\begin{schema}{DATABASE}
+  schemas : \power TABLESCHEMA \\
+  foreignKeys : \power FOREIGNKEY \\
+  values : \power DATAVALUES \\
+  sequence : SEQUENCE
+\end{schema}
+
+\begin{axdef}
+	ERRDATABASE : DATABASE
+\end{axdef}
+
+\begin{zsection}
+  \SECTION DatabaseInvariants \parents DatabaseModel
+\end{zsection}
+
+\begin{axdef}
+\where
+  \forall ts_1, ts_2 : TABLESCHEMA; d : DATABASE @ \\
+  \;\;\; ts_1.label = ts_2.label \land ts_1 \in d.schemas \land ts_2 \in d.schemas \implies 
+  \;\;\; ts_1 = ts_2 \\
+  \forall col_1, col_2 : COLUMN; ts : TABLESCHEMA @ \\
+  \;\;\; col_1.label = col_2.label \land col_1 \in ts.columns \land col_2 \in ts.columns \implies col_1 = col_2                           \\
+  \forall fk_1, fk_2 : FOREIGNKEY; d : DATABASE @ \\
+  \;\;\;  fk_1.label = fk_2.label \land fk_1 \in d.foreignKeys \land fk_2 \in d.foreignKeys \implies fk_1 = fk_2
+\end{axdef}
+
+\begin{axdef}
+\where
+    \forall cv_1, cv_2 : COLUMNVALUE; cd : COLUMN @ \\
+     \;\;\; cv_1 \neq cv_2 \land cv_1.definition = cd \land cv_2.definition = cd \land \\ 
+     \;\;\; UNIQUE \in cd.constraints \implies cv_1.value \neq cv_2.value  
+\end{axdef}
+
+\begin{axdef}
+\where
+  \forall  d : DATABASE;  ts : TABLESCHEMA; col : COLUMN; td : DATAVALUES @ \\
+ \;\;\;   ts \in d.schemas \land \\
+ \;\;\;   col \in ts.columns \land \\
+ \;\;\;   td.definition = ts \land \\
+ \;\;\;   td \in d.values \land \\
+ \;\;\;   NOTNULL \in col.constraints \implies \\
+ \;\;\;\;\;\;     \exists cv : COLUMNVALUE @ cv \in td.colValues \\ 
+\end{axdef}
+
+\begin{axdef}
+\where
+  \forall d : DATABASE;  fk : FOREIGNKEY @ \\
+\;\;\;    fk \in d.foreignKeys  \iff \\
+\;\;\;    \exists ds_s, ds_t : TABLESCHEMA @ \\
+\;\;\;\;\;\; ds_s = fk.source \land \\
+\;\;\;\;\;\; ds_t = fk.reference \land \\
+\;\;\;\;\;\; ds_s \in d.schemas \land \\
+\;\;\;\;\;\; ds_t \in d.schemas 
+\end{axdef}
+
+\begin{axdef}
+\where
+  \forall fv : FOREIGNKEYVALUE; d : DATABASE; dv : DATAVALUES @ \\
+  \;\;\; fv \in dv.foreignkeyValues \land dv \in d.values \implies \\
+  \;\;\;  \exists dv_2 : DATAVALUES @ \\
+  \;\;\;\;\;\;    dv_2.key.value = fv.value \land dv_2.definition = fv.definition.reference
+\end{axdef}
+
+\begin{axdef} 
+\where
+  \forall d : DATABASE; dv : DATAVALUES; cv : COLUMNVALUE; \\ fk : FOREIGNKEYVALUE @ \\
+\;\;\;    (dv \in d.values \iff dv.definition \in d.schemas) \land \\
+\;\;\;    (cv \in dv.colValues \iff cv.definition \in dv.definition.columns)\land \\
+\;\;\;    (fk \in dv.foreignkeyValues \iff fk.definition \in d.foreignKeys)
+\end{axdef}
+
+\begin{axdef}
+\where
+  \forall dv_1, dv_2 : DATAVALUES; d : DATABASE @ \\
+  \;\;\; dv_1 \in d.values \land dv_2 \in d.values \land dv_1.key = dv_2.key \land  \\
+  \;\;\; dv_1.definition = dv_2.definition \implies dv_1 = dv_2
+\end{axdef}
+
+
+\begin{zsection}
+  \SECTION Mapping \parents DatabaseModel
+\end{zsection}
+
+\begin{schema}{MAPPINGPAIR}
+  source : DATAVALUES \\
+  target : DATAVALUES
+ \where
+  source \neq NULLDATAVALUE
+\end{schema}
+
+\begin{schema}{MAPPING}
+  pairs : \power MAPPINGPAIR
+\where
+  \forall p_1, p_2 : MAPPINGPAIR @ \\
+  \;\;\; p_1.source.definition = p_2.source.definition \land \\ 
+  \;\;\; p_2.target.definition = p_1.target.definition
+\end{schema}
+
+\begin{axdef}
+    inverse : MAPPING \fun  MAPPING \\
+   \where
+   \forall m, m^{i} : MAPPING @ \\
+   \;\;\; inverse(m) = m^{i} \iff\\
+   \;\;\;\;\;\; (\forall p : MAPPINGPAIR @ p \in m.pairs \implies \\
+   \;\;\;\;\;\;\;\;\; \exists p^{i} : MAPPINGPAIR @  \\
+   \;\;\;\;\;\;\;\;\;\;\;\; p^{i} \in m^{i}.pairs \land p.source = p^{i}.target \land p.target = p^{i}.source) \land \\
+   \;\;\;\;\;\; (\forall p^{i} : MAPPINGPAIR @ p^{i} \in m^{i}.pairs \implies \\
+   \;\;\;\;\;\;\;\;\; \exists p : MAPPINGPAIR @  \\
+   \;\;\;\;\;\;\;\;\;\;\;\; p \in m.pairs \land p.source = p^{i}.target \land p.target = p^{i}.source)
+\end{axdef}
+
+\begin{axdef}
+   \where
+   \forall  d : DATABASE;  m : MAPPING;  p : MAPPINGPAIR @ \\
+   \;\;\; p \in m.pairs \implies p.source.definition \in d.schemas
+\end{axdef}
+
+\begin{axdef}
+\where
+   \forall  m : MAPPING; p_1, p_2 : MAPPINGPAIR; x_1, x_2, y_1, y_2 : DATAVALUES; \\ c_1, c_2 : COLUMNVALUE @ \\
+\;\;\;   p_1 \in m.pairs \land p_2 \in m.pairs \land x_1 = p_1.source \land \\
+\;\;\;    x_1 = p_1.source \land x_2 = p_2.source \land  \\
+\;\;\; y_1 = p_1.target \land y_2 = p_2.target
+  \land	c_1 \in y_1.colValues \land \\
+  \;\;\; c_2 \in y_2.colValues \land c_1.definition = c_2.definition \land \\
+  \;\;\; NOTNULL \in c_1.definition.constraints \implies
+  c_1.value \neq c_2.value
+\end{axdef}
+
+\begin{axdef}
+    \where
+    \forall  m : MAPPING; p : MAPPINGPAIR; c : COLUMN @ \\
+    \;\;\; (p \in m.pairs \land c \in p.source.definition.columns \land NOTNULL \in c.constraints  \implies \\
+    \;\;\; \;\;\; \exists  cv : COLUMNVALUE @ cv \in p.source.colValues \land cv.definition = c) \lor \\
+    \;\;\; (c \in p.target.definition.columns \land NOTNULL \in c.constraints  \implies \\
+    \;\;\; \;\;\; \exists  cv : COLUMNVALUE @ cv \in p.target.colValues \land cv.definition = c) \\
+    \forall m : MAPPING; p : MAPPINGPAIR; f : FOREIGNKEY @ \\
+    \;\;\; (p \in m.pairs \land f.source = p.source.definition \land NOTNULL \in f.constraints  \implies \\
+    \;\;\; \;\;\; \exists  fv : FOREIGNKEYVALUE @ fv \in p.source.foreignkeyValues \land \\
+    \;\;\; \;\;\; fv.definition = f) \lor \\
+    \;\;\; (p \in m.pairs \land f.source = p.target.definition \land NOTNULL \in f.constraints  \implies \\
+    \;\;\; \;\;\; \exists  fv : FOREIGNKEYVALUE @ fv \in p.target.foreignkeyValues \land \\
+    \;\;\; \;\;\; fv.definition = f)
+\end{axdef}
+
+\begin{schema}{MappingSourceComplete}
+	\Xi DATABASE \\
+	map? : MAPPING \\
+    m : MAPPINGPAIR \\
+ \where
+  m \in map?.pairs \\
+  \forall ds : DATAVALUES @ \\
+  \;\;\; ds \in values \land ds.definition = m.source.definition \iff \\
+  \;\;\; \exists mp : MAPPINGPAIR @ mp.source = ds \land mp \in map?.pairs
+\end{schema}
+
+\begin{schema}{MappingTargetComplete}
+	\Xi DATABASE \\
+	map? : MAPPING \\
+    m : MAPPINGPAIR \\
+ \where
+ 	m \in map?.pairs \\
+    \forall ds : DATAVALUES @ \\
+    \;\;\; ds \in values \land ds.definition = m.target.definition \iff \\
+    \;\;\; \exists mp : MAPPINGPAIR @ mp.target = ds \land mp \in map?.pairs
+\end{schema}
+
+ \begin{schema}{MappingFullComplete}
+	\Xi DATABASE \\
+ 	map? : MAPPING \\
+	 m : MAPPINGPAIR \\
+ \where
+	MappingSourceComplete \\
+    MappingTargetComplete
+\end{schema}
+
+\begin{schema}{MappingIsSimple}
+    \Xi DATABASE \\
+ 	map? : MAPPING \\
+    m? : MAPPING \\
+  \where
+    \forall dvs, dvt : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+         \;\;\; dvs \in values \land dvt \in values \land m \in map?.pairs \land 
+         m_2 \in map?.pairs \implies \\
+         \;\;\;\;\;\; (dvs = m.source \land dvs = m_2.source \implies  m = m_2) \land \\
+         \;\;\;\;\;\; (dvt = m.target \land dvt = m_2.target \implies  m = m_2) 
+    \end{schema}
+    
+    
+ \begin{schema}{MappinNoTargetDuplicates}
+        \Xi DATABASE \\
+        map? : MAPPING \\
+        \where
+    \exists dvs : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+        \;\;\; dvs \in values \land m \in map?.pairs \land m_2 \in map?.pairs \land \\
+        \;\;\; dvs = m.source \land  dvs = m_2.source \land m \neq m_2 \\
+    \forall dvt : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+         \;\;\; dvt \in values \land dvt \in values \land m \in map?.pairs \land m_2 \in map?.pairs  \land \\
+         \;\;\; dvt = m.target \land dvt = m_2.target \implies  m = m_2
+    \end{schema}
+    
+    
+  \begin{schema}{MappinNoSourceDuplicates}
+    	\Xi DATABASE \\
+        map? : MAPPING \\
+        \where
+    \exists dvt : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+        \;\;\; dvt \in values \land m \in map?.pairs \land m_2 \in map?.pairs \land \\
+        \;\;\; dvt = m.target \land  dvt = m_2.target \land m \neq m_2 \\
+    \forall dvs  : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+         \;\;\; dvs \in values \land  m \in map?.pairs \land  \\
+         \;\;\; dvs = m.source \land dvs = m_2.source \implies  m = m_2
+    \end{schema}
+    
+    
+\begin{schema}{MappinWithDuplicates}
+	\Xi DATABASE \\
+        map? : MAPPING \\
+        \where
+    \exists dvt : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+        \;\;\; dvt \in values \land m \in map?.pairs \land m_2 \in map?.pairs \land \\
+        \;\;\; dvt = m.target \land  dvt = m_2.target \land m \neq m_2 \\
+   \exists dvs : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
+        \;\;\; dvs \in values \land m \in map?.pairs \land m_2 \in map?.pairs \land \\
+        \;\;\; dvs = m.source \land  dvs = m_2.source \land m \neq m_2 \\
+ \end{schema} 
+ 
+ \begin{zsection}
+  \SECTION DatabaseHelpers \parents Mapping
+\end{zsection}
+
+\begin{schema}{insertDataToFKDB}
+  \Delta DATABASE \\
+  fk? : FOREIGNKEY \\
+  map? : MAPPING \\
+\where
+  \forall dv, dv' : DATAVALUES; p : MAPPINGPAIR; \\ 
+  \;\;\; fkv : FOREIGNKEYVALUE @ 
+  	p \in map?.pairs \land dv = p.target \land \\
+  	\;\;\;\;\;\; fkv.value = p.source.key.value \land fkv.definition = fk? \implies \\
+  	\;\;\;\;\;\; 	dv'.foreignkeyValues = dv.foreignkeyValues \cup \{ fkv \}
+\end{schema}
+
+\begin{schema}{insertDataToMapTableDB}
+	\Delta DATABASE \\
+	ts? : TABLESCHEMA \\
+	map? : MAPPING \\
+\where
+	  \forall dv1, dv2, dv' : DATAVALUES; p : MAPPINGPAIR; \\
+	  \;\;\; fkv, fkv2 : FOREIGNKEYVALUE; fk, fk2 : FOREIGNKEY @ \\
+	  \;\;\;\; 	p \in map?.pairs \land dv1 = p.target \land dv2 = p.source \land fk.source = ts? \land \\
+	  \;\;\;\; fk.reference = dv1.definition 
+  	\land fk2.source = ts? \land \\
+  	\;\;\;\; fk2.reference = dv2.definition \land fkv.definition = fk \land  \\
+  	\;\;\;\; fkv2.definition = fk2 \implies \\
+  	\;\;\;\;  fkv.value = dv1.key.value \land fkv2.value = dv2.key.value
+\end{schema}
+
+\begin{schema}{initDatabase}
+  d? : DATABASE
+\where
+  d?.schemas = \emptyset \\
+  d?.foreignKeys = \emptyset \\
+  d?.values = \emptyset \\
+  d?.sequence.current = 0 
+\end{schema}
+
+\begin{schema}{initColumn}
+  col! : COLUMN \\
+  constraints? : \power CONSTRAINT \\
+  l? : LABEL
+\where
+  col!.label = l? \\
+  col!.type \in DTYPE \\
+  col!.constraints = constraints? \\
+\end{schema}
+
+\begin{schema}{initTableSchema}
+  ts! : TABLESCHEMA \\
+  label? : LABEL \\
+  primKey? : PRIMARYKEY \\
+  columns? : \power COLUMN \\
+\where
+  ts!.label = label? \\
+  ts!.primKey = primKey? \\
+  ts!.columns = columns?
+\end{schema}
+
+\begin{schema}{initPrimaryKey}
+  primKey! : PRIMARYKEY \\
+  l? : LABEL \\
+\where
+  primKey!.name = l? 
+\end{schema}
+
+\begin{schema}{initForeignKey}
+  l? : LABEL \\
+  constraints? : \power CONSTRAINT \\
+  source? : TABLESCHEMA \\
+  reference? : TABLESCHEMA \\
+  fk! : FOREIGNKEY \\
+\where
+  fk!.label = l? \\
+  fk!.constraints = constraints? \\
+  fk!.source = source? \\
+  fk!.reference = reference?
+\end{schema}
+
+\begin{axdef}
+  valueOfColumn : COLUMN \cross DATAVALUES \fun \power COLUMNVALUE
+\where
+  \forall c : COLUMN; d : DATAVALUES  @ \\
+  \;\;\; valueOfColumn(c, d) = \\
+  \;\;\;\;\;\;    \{ cv : COLUMNVALUE | cv.definition =  c \land cv \in d.colValues \}
+\end{axdef}
+
+\begin{axdef}
+  referingSchemas : TABLESCHEMA \cross DATABASE \fun \power FOREIGNKEY
+\where
+ \forall ts : TABLESCHEMA; d : DATABASE; fks : \power FOREIGNKEY @ \\
+\;\;\;   referingSchemas(ts, d) = \\
+\;\;\;\;\;\; \{ fk : FOREIGNKEY | fk \in d.foreignKeys \land  fk.reference = ts \}
+\end{axdef}
+
+\begin{axdef}
+  selectAllData : TABLESCHEMA \cross DATABASE \fun \power DATAVALUES
+\where
+  \forall ts : TABLESCHEMA; d : DATABASE @
+    ts \in d.schemas \implies \\ \;\;\;
+    selectAllData(ts, d) = \{ dv : DATAVALUES | \\
+    \;\;\; dv \in d.values \land dv.definition = ts \}
+\end{axdef}
+
+\begin{schema}{addTableDB}
+  \Delta DATABASE \\
+  ts? : TABLESCHEMA \\
+\where
+  \forall ts : TABLESCHEMA @ \\
+  \;\;\; ts \in schemas \land ts.label \neq ts?.label \\
+  schemas' = schemas \cup \{ ts? \}
+\end{schema}
+
+\begin{schema}{dropTableDB}
+  \Delta DATABASE \\  
+  ts? : TABLESCHEMA \\
+\where
+  ts? \in schemas \\ 
+  referingSchemas(ts?, \theta DATABASE) = \emptyset \\
+  schemas' = schemas \setminus \{ ts? \} \\
+  values' = values \setminus \{ val : DATAVALUES | \\
+  \;\;\;   val \in values \land val.definition = ts? \}
+\end{schema}
+
+\begin{schema}{dropEmptyTableDB}
+  \Delta DATABASE \\  
+  ts? : TABLESCHEMA \\
+\where
+  \{ d : DATAVALUES | d \in values \land d.definition = ts? \} = \emptyset \\
+  dropTableDB
+\end{schema}
+
+
+\begin{schema}{addColumnDB}
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+   col? : COLUMN \\
+\where
+  \forall col : COLUMN @ \\
+  \;\;\; col \in columns \implies col.label \neq col?.label \\
+  columns' = columns \cup \{ col? \} \\
+\end{schema}
+
+\begin{schema}{dropColumnDB}
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+  col? : COLUMN \\
+\where
+  col? \in columns \\ 
+  columns' = columns \setminus \{ col? \} \\
+  \forall dv, dv' : DATAVALUES; cv : COLUMNVALUE @ \\
+  \;\;\;  dv.definition = \theta{TABLESCHEMA} \land cv.definition = col? \land \\
+  \;\;\;  cv \in dv.colValues \implies \\
+  \;\;\;\;\;\;   dv'.definition = dv.definition \land dv'.key = dv.key \land \\ 
+  \;\;\;\;\;\;   dv'.foreignkeyValues = dv.foreignkeyValues \land \\ 
+  \;\;\;\;\;\;   dv'.colValues = dv.colValues \setminus \{ cv \} \land \\
+  \;\;\;\;\;\;   values' = (values \setminus \{ dv \}) \cup \{ dv' \}\\
+\end{schema}
+
+\begin{schema}{dropEmptyColumnDB}
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+  col? : COLUMN \\
+\where
+  \{ cv : COLUMNVALUE | cv.definition = col? \} = \emptyset \\
+  dropColumnDB
+\end{schema}
+
+ \begin{schema}{addForeignKeyDB}
+  \Delta DATABASE \\
+  fk? : FOREIGNKEY \\
+\where
+  fk?.source \in schemas \\
+  fk?.reference \in schemas \\
+  NOTNULL \in fk?.constraints \iff \\
+    \{  dv : DATAVALUES | dv.definition = fk?.source  \} = \emptyset \\
+  foreignKeys' = foreignKeys \cup \{ fk? \}
+\end{schema}
+
+\begin{schema}{dropForeignKeyDB}
+  \Delta DATABASE \\
+  fk? : FOREIGNKEY \\
+\where
+  fk? \in foreignKeys \\
+  \forall dv, dv' : DATAVALUES; fv : FOREIGNKEYVALUE @ \\
+  \;\;\;  dv.definition = fk?.source \land fv.definition = fk? \land \\
+  \;\;\;  fv \in dv.foreignkeyValues \implies \\
+  \;\;\;\;\;\;   dv'.definition = dv.definition \land dv'.key = dv.key \land \\ 
+  \;\;\;\;\;\;   dv'.colValues = dv.colValues \land \\
+  \;\;\;\;\;\;   dv'.foreignkeyValues = dv.foreignkeyValues \setminus \{ fv \}  \land \\ 
+  \;\;\;\;\;\;   values' = (values \setminus \{ dv \}) \cup \{ dv' \}\\
+  foreignKeys' = foreignKeys \setminus \{ fk? \} 
+\end{schema}
+
+\begin{schema}{dropEmptyForeignKeyDB}
+  \Delta DATABASE \\
+  fk? : FOREIGNKEY \\
+\where
+  \{fkv : FOREIGNKEYVALUE | fkv.definition = fk? \} = \emptyset \\
+  dropForeignKeyDB
+\end{schema}
+
+\begin{schema}{copyColumnDB}
+ \Delta DATABASE \\
+ \Delta TABLESCHEMA \\
+ col? : COLUMN \\
+ sourceSchema? : TABLESCHEMA \\
+ targetSchema? : TABLESCHEMA \\
+ map? : MAPPING \\
+ %inner declaration
+ targetSchema' : TABLESCHEMA
+ \where
+ targetSchema? = \theta TABLESCHEMA \\
+ targetSchema' = \theta (TABLESCHEMA)' \\
+ col? \in sourceSchema?.columns \\
+ sourceSchema? \in schemas \\
+ targetSchema? \in schemas \\
+ targetSchema'.columns = targetSchema?.columns \cup \{ col? \}  \\
+ \forall m : MAPPINGPAIR; cval, dval : DATAVALUES; \\
+ \;\;\;  colval : COLUMNVALUE @ \\
+ \;\;\;\;\;\; m.source.definition = sourceSchema? \land m.target.definition = targetSchema? \land \\
+ \;\;\;\;\;\; cval = m.source \land dval = m.target \land colval.definition = col? \implies \\
+ \;\;\;\;\;\; values' = values \setminus \{ dval \} \cup \{ dval' : DATAVALUES | \\ 
+  \;\;\;\;\;\; \;\;\; dval'.colValues = dval.colValues \cup \{ colval \} \land \\
+ \;\;\;\;\;\; \;\;\; dval'.key = dval.key \land dval'.definition = dval.definition \land \\
+ \;\;\;\;\;\; \;\;\; dval'.foreignkeyValues = dval.foreignkeyValues \} 
+\end{schema}
+
+\begin{schema}{copyTableStructureDB}
+  \Delta DATABASE \\
+  ts? : TABLESCHEMA \\
+  l? : LABEL \\
+  %inner declaration
+  ts : TABLESCHEMA
+\where
+  ts? \in schemas \\
+  \forall t : TABLESCHEMA @ \\
+  \;\;\; t \in schemas \implies t.label \neq l? \\
+  ts.label = l? \\
+  ts.columns = ts?.columns  \\
+  ts.primKey = ts?.primKey  \\
+  schemas' = schemas \cup \{ ts \}  \\
+  \forall fk : FOREIGNKEY @ \\
+  \;\;\;  fk \in foreignKeys \land fk.source = ts? \implies \\
+\;\;\;  foreignKeys' = foreignKeys \cup \{fk' : FOREIGNKEY | \\ 
+\;\;\;\;\;\;\; fk'.source = ts \land fk'.reference = fk.reference \land  \\ 
+\;\;\;\; fk'.constraints = fk.constraints \land fk'.label = fk.label \}
+\end{schema}
+
+\begin{schema}{copyTableDB}
+  \Delta DATABASE \\
+  ts? : TABLESCHEMA \\
+  l? : LABEL \\
+   %inner child declaration
+  ts : TABLESCHEMA
+\where
+ copyTableStructureDB \land \\
+ \forall dv : DATAVALUES @ \\
+\;\;\; dv \in values \land dv.definition = ts? \implies \\
+\;\;\;  values' = values \cup \{ dv' : DATAVALUES | \\ 
+\;\;\;\;\;\; dv'.definition = dv.definition \land dv'.colValues = dv.colValues \land \\
+\;\;\;\;\;\;  dv'.key = dv'.key \land dv'.foreignkeyValues = dv.foreignkeyValues \}
+\end{schema}
+
+\begin{axdef}
+  next : SEQUENCE \fun \num
+\end{axdef}
+
+
+\begin{zsection}
+  \SECTION ORM \parents ApplicationHelpers, DatabaseHelpers
+\end{zsection}
+
+\begin{axdef}
+	dbNameORM : LABEL \fun LABEL
+\end{axdef}
+
+\begin{schema}{attributeToColumnORM}
+  p? : ATTRIBUTE \\
+  col! : COLUMN \\
+ \where
+  col!.label = dbNameORM(p?.label) \\
+  col!.type \in DTYPE \\
+  p?.optional = True \implies NOTNULL \in col!.constraints \\
+\end{schema}
+
+ \begin{schema}{attributeToTableORM}
+  \Xi DATABASE \\
+  p? : ATTRIBUTE \\
+  ts! : TABLESCHEMA \\
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  constraints : \power CONSTRAINT \\
+  col : COLUMN \\
+  columns : \power COLUMN \\
+ \where
+    label = dbNameORM(p?.label) \\
+    initPrimaryKey[label/l?,primKey/primKey!] \\
+    p?.optional = True \implies constraints = \{ NOTNULL \} \\
+    p?.optional = False \implies constraints = \emptyset \\
+    initColumn[col/col!, constraints/constraints?, label/l?] \\
+    columns = \{ col \} \\
+  initTableSchema[label/label?, primKey/primKey?, columns/columns?]
+\end{schema}
+
+\begin{schema}{attributesToDbORM}
+  \Xi DATABASE \\
+  columns! : \power COLUMN \\
+  tables! : \power TABLESCHEMA \\
+  attributes? : \power ATTRIBUTE \\
+  col : COLUMN \\
+  ts : TABLESCHEMA \\
+  %inner declarations
+  l, label : LABEL \\
+  primKey : PRIMARYKEY \\
+  constraints : \power CONSTRAINT \\
+  columns : \power COLUMN \\
+\where
+  \forall p : ATTRIBUTE @
+    (p \in attributes? \land p.upper = One \implies \\
+    \;\;\; attributeToColumnORM[p/p?, col/col!] \land col \in columns!) \lor \\
+    (p \in attributes? \land p.upper = Many \implies attributeToTableORM[p/p?, ts/ts!] \land \\ ts \in tables!)
+\end{schema}
+
+\begin{schema}{entityOutsideHierarchyToTableORM}
+  \Xi ENTITIES \\
+  c? : CLASS\\
+  ts! : TABLESCHEMA \\
+  %inner declarations
+  label : LABEL \\
+  atts : \power ATTRIBUTE \\
+  %inner child declarations
+  primKey : PRIMARYKEY \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+\where
+  (parentOf(c?, \theta(ENTITIES)) = NULLCLASS \land \\ children(c?, \theta(ENTITIES)) = \emptyset) \implies \\
+  \;\;\;  label = dbNameORM(c?.label) \land \\
+  \;\;\;  atts = attributesOf(c?, \theta(ENTITIES)) \land \\
+  \;\;\;  initPrimaryKey[label/l?,primKey/primKey!] \land \\
+  \;\;\;  attributesToDbORM[columns/columns!, attributes/attributes?, tables/tables!]  \land \\
+  \;\;\;  initTableSchema[label/label?, primKey/primKey?, columns/columns?] \\
+\end{schema}
+
+\begin{axdef}
+  INSTANCEDEF : LABEL
+\end{axdef}
+
+
+\begin{schema}{parentEntityToTableORM}
+  \Xi ENTITIES \\
+  c? : CLASS\\
+  ts! : TABLESCHEMA \\
+  %inner declarations
+  label : LABEL \\
+  %inner child declarations
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col, col2 :  COLUMN \\
+  ts : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  type : DTYPE \\
+\where
+parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
+  children(c?, \theta(ENTITIES)) \neq \emptyset  \\ 
+  classes = \{ c : CLASS |  c \in \dom (childParentRelation(c?, \theta(ENTITIES))\plus) \}  \\
+  label = dbNameORM(c?.label)  \\
+  initPrimaryKey[label/l?,primKey/primKey!]  \\
+  \forall a : ATTRIBUTE @ \\
+   \;\;\; a \in atts \iff \exists c : CLASS @ c \in classes \land a \in  attributesOf(c, \theta(ENTITIES))  \\
+ attributesToDbORM[columns/columns!, atts/attributes?, tables/tables!] \pipe \\ 
+ [|constraints = \{ NOTNULL \} \land \\
+ \;\;\; initColumn[INSTANCEDEF/l?, constraints/constraints?, col2/col! ] \land \\
+ \;\;\;\;\;\; columns \cup \{col2\} ] \pipe \\
+    initTableSchema[label/label?, primKey/primKey?, columns/columns?]
+\end{schema}
+
+\begin{schema}{entityToTableNoAttributesORM}
+  \Xi ENTITIES \\
+  c? : CLASS\\
+  ts! : TABLESCHEMA \\
+  %inner declarations
+  label : LABEL\\
+  columns : \power COLUMN \\
+  primKey : PRIMARYKEY 
+\where
+  label = dbNameORM(c?.label) \\
+  columns = \emptyset \\
+  initPrimaryKey[label/l?,primKey/primKey!] \\
+  initTableSchema[label/label?, primKey/primKey?, columns/columns?]
+\end{schema}
+
+
+
+\begin{schema}{entityToTableORM}
+  \Xi ENTITIES \\
+  c? : CLASS\\
+  ts! : TABLESCHEMA \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col, col2  :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+   type : DTYPE \\
+  constraints : \power CONSTRAINT \\
+\where
+  parentEntityToTableORM \lor \\
+  entityOutsideHierarchyToTableORM
+\end{schema}
+
+\begin{schema}{assocToFkORM}
+  \Xi ENTITIES \\
+  \Xi DATABASE \\
+  a? : ASSOCIATION \\
+  fk! : FOREIGNKEY \\
+  name : LABEL \\
+  c, d : CLASS \\
+  sourceSchema, targetSchema :  TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  %inner declarations
+  l, label : LABEL \\
+  primKey : PRIMARYKEY \\
+  columns : \power COLUMN \\
+  tables : \power TABLESCHEMA\\
+  col : COLUMN \\
+  ts : TABLESCHEMA \\
+  atts : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+ \where
+  name = dbNameORM(a?.label) \\
+  a?.optional = True \implies constraints = \{ NOTNULL \} \\
+  a?.optional = False \implies constraints = \emptyset \\
+  c = a?.source \\
+  entityToTableORM[c/c?, sourceSchema/ts!] \\
+  d = a?.target \\
+  entityToTableORM[d/c?, targetSchema/ts!] \\ 
+  initForeignKey[name/l?, constraints/constraints?, sourceSchema/source?,\\
+  \;\;\; targetSchema/reference?]
+\end{schema}
+
+\begin{schema}{assocToTableORM}
+  \Xi DATABASE \\
+  \Xi ENTITIES \\
+  a? : ASSOCIATION \\
+  ts! : TABLESCHEMA \\
+  fk1, fk2 : FOREIGNKEY \\ %todo musi vracet  
+  l : LABEL \\
+  primKey : PRIMARYKEY \\
+  constraints : \power CONSTRAINT \\
+  columns : \power COLUMN \\
+  sourceCLASS, targetCLASS : CLASS \\
+  sourceSchema, targetSchema : TABLESCHEMA \\
+  %inner declarations
+  label : LABEL \\
+  ts, table : TABLESCHEMA \\
+  tables : \power TABLESCHEMA \\
+  col : COLUMN \\
+  atts : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+    l = dbNameORM(a?.label) \\
+    initPrimaryKey[l/l?, primKey/primKey!] \\
+  a?.optional = True \implies constraints = \{ NOTNULL \} \\
+    a?.optional = False \implies constraints = \emptyset \\
+    columns = \emptyset \\
+  initTableSchema[l/label?, primKey/primKey?, \\ columns/columns?, table/ts!] \\
+  sourceCLASS = a?.source \\
+  targetCLASS = a?.target \\
+  entityToTableORM[sourceCLASS/c?, sourceSchema/ts!] \\
+  entityToTableORM[targetCLASS/c?, targetSchema/ts!] \\
+  initForeignKey[table/source?, sourceSchema/reference?, \\ \;\;\; constraints/constraints?,  label/l?, fk1/fk!] \\
+    initForeignKey[table/source?, targetSchema/reference?,\\ \;\;\; constraints/constraints?,  label/l?, fk2/fk!] \\
+\end{schema}
+
+
+\begin{schema}{ORM}
+  \Xi ENTITIES \\
+  \Xi DATABASE \\
+  e? : ENTITIES \\
+  d? : DATABASE \\
+  %inner declarations
+  label, l, name : LABEL \\
+  primKey : PRIMARYKEY \\
+  columns : \power COLUMN \\
+  tables : \power TABLESCHEMA \\
+  col : COLUMN \\
+  sourceSchema, targetSchema, table, ts : TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  fk1, fk2 : FOREIGNKEY \\
+  atts : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  \forall c : CLASS @  \\ \;\;\; c \in e?.classes \iff \\
+  \;\;\;  \exists td, td2 : TABLESCHEMA @ \\
+  \;\;\;\;\;\;   td \in d?.schemas \land entityToTableORM[c/c?, td2/ts!] \land td2 = td \\
+   \forall a : ASSOCIATION @ \\\;\;\; a \in e?.associations \land a.upper = Many \iff \\
+  \;\;\;  \exists fk, fk2 : FOREIGNKEY @ \\
+  \;\;\;\;\;\; fk \in d?.foreignKeys \land assocToFkORM[a/a?,fk2/fk!] \land fk2 = fk \\
+  \forall a : ASSOCIATION @ \\ \;\;\; a \in e?.associations \land a.upper = One \iff \\
+  \;\;\;  \exists td, td2 : TABLESCHEMA @ \\ 
+  \;\;\;\;\;\; td \in d?.schemas \land assocToTableORM[a/a?,td2/ts!] \land td2 = td \\
+\end{schema}
+
+ 
+ 
+ \begin{zsection}
+  \SECTION Software \parents DatabaseModel, ApplicationModel, ORM
+\end{zsection}
+
+\begin{schema}{SOFTWARE}
+  entities : ENTITIES \\
+  database : DATABASE \\
+\end{schema}
+
+\begin{axdef}
+ \Xi SOFTWARE \\
+ \Xi ENTITIES \\
+  \Xi ENTITIES \\
+  \Xi DATABASE \\
+  %inner declarations
+  label, l, name : LABEL \\
+  primKey : PRIMARYKEY \\
+  columns : \power COLUMN \\
+  tables : \power TABLESCHEMA \\
+  col : COLUMN \\
+  sourceSchema, targetSchema, table, ts : TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  fk1, fk2 : FOREIGNKEY \\
+  atts : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+	\forall s : SOFTWARE; entities : ENTITIES; database : DATABASE @ \\
+\;\;\;	entities = s.entities \land database = s.database \land\\
+\;\;\;	entities \neq ERRENTITIES  \land \\
+\;\;\;	database \neq ERRDATABASE \land \\   
+\;\;\;  ORM[entities/e?, database/d?]
+\end{axdef}
+
+\begin{schema}{initSoftware}
+ SOFTWARE
+ \where
+  initDatabase[database/d?] \\
+  initEntities[entities/e?]
+\end{schema}
+
+\begin{zsection}
+  \SECTION RefactoringHelpers \parents Software, DatabaseHelpers, ApplicationHelpers
+\end{zsection}
+
+\begin{schema}{moveAttributes}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+   c? : CLASS \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  pts, ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  d : CLASS \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  d = parentOf(c?, entities) \\
+  entityToTableORM[d/c?, pts/ts!] \\
+  \forall p : MAPPINGPAIR @ \\
+    \;\;\; p \in map.pairs \iff p.source = p.target \land p.source.definition = pts \\
+  \forall p : ATTRIBUTE @ \\
+    \;\;\; p \in attributesOf(c?, entities) \implies 
+    moveAttribute[d/d?, p/p?, map/map?]
+\end{schema}
+
+\begin{schema}{changeAssociationDirectionEL}
+  \Delta ASSOCIATION \\
+  target? : CLASS \\
+  a? : ASSOCIATION \\
+\where
+  a? = \theta(ASSOCIATION) \\
+  target' = target?
+\end{schema}
+
+\begin{schema}{changeFKreferenceDB}
+  \Delta DATABASE \\
+  fk? : FOREIGNKEY \\
+  targetSchema? : TABLESCHEMA \\
+  map? : MAPPING \\
+  %inner declarations
+  fk : FOREIGNKEY \\
+\where
+  fk.label = fk?.label \\
+  fk.constraints = fk?.constraints \\
+  fk.source = fk?.source \\
+  fk.reference = targetSchema? \\
+  foreignKeys' = foreignKeys \setminus \{ fk? \} \cup \{fk \} \\ 
+  \forall dv, dv' : DATAVALUES; fkv, fkv' : FOREIGNKEYVALUE; \\
+  \;\;\;\;\;\; p : MAPPINGPAIR @ \\
+  	\;\;\; dv.definition = fk.source \land \\
+  	\;\;\; fkv.definition = fk \land \\ 
+  	\;\;\; fkv \in dv.foreignkeyValues \land dv = p.source \implies \\
+  	\;\;\; fkv'.definition = fk? \land \\
+  	\;\;\; fkv'.value = p.target.key.value \land \\
+  	\;\;\; dv'.foreignkeyValues = dv.foreignkeyValues \setminus \{ fkv \} \cup \{ fkv' \} 
+\end{schema}
+
+\begin{schema}{changeReferenceTableDB}
+  \Xi ENTITIES \\
+  \Delta DATABASE \\
+  ts? : TABLESCHEMA \\
+  newTarget?, oldTarget? : CLASS \\
+  map? : MAPPING \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  tso, ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  fk : FOREIGNKEY \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[newTarget?/c?, ts/ts!] \\
+  entityToTableORM[oldTarget?/c?, tso/ts!] \\
+  \forall fk : FOREIGNKEY @ \\
+  \;\;\; fk.source = ts? \land fk.reference = tso \\
+    changeFKreferenceDB[fk/fk?, ts/targetSchema?] 
+\end{schema}
+
+\begin{schema}{changeReferenceInDB}
+  \Xi ENTITIES \\
+  \Delta DATABASE \\
+  a? : ASSOCIATION \\
+  target? : CLASS \\
+  map? : MAPPING \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  tso, ts, ts!, targetSchema, sourceSchema, table : TABLESCHEMA \\
+  l, name : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  fk, fk1, fk2 : FOREIGNKEY \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where  
+  entityToTableORM[target?/c?, targetSchema/ts!] \\
+  a?.upper = One \implies assocToFkORM \pipe \\
+  \;\;\; changeFKreferenceDB[targetSchema/targetSchema?] \\
+  a?.upper = Many \implies \exists c == a?.source @ assocToTableORM \pipe \\ 
+  \;\;\; changeReferenceTableDB[target?/newTarget?, c/oldTarget?]
+\end{schema}
+
+\begin{schema}{initMappingForSplit}
+  \Xi ENTITIES \\
+  \Xi DATABASE \\
+  map! : MAPPING \\
+  old?, new?  : CLASS \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, oldSchema, newSchema : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[old?/c?, oldSchema/ts!] \\ 
+  entityToTableORM[old?/c?, newSchema/ts!] \\ 
+  \forall m : MAPPINGPAIR @ \\
+    \;\;\; m \in map!.pairs \implies \\
+    \;\;\; m.source \in selectAllData(oldSchema, \theta(DATABASE)) \iff \\
+    \;\;\; m.target.definition = newSchema \land \\
+    \;\;\; m.target.key = m.source.key \land \\
+    \;\;\; \#m.target.colValues = 1 \land \\
+    \;\;\; \forall cv :COLUMNVALUE; c : COLUMN @ \\
+    \;\;\;\;\;\; cv \in m.target.colValues \implies\\
+    \;\;\;\;\;\; cv.definition = c \land  c \in newSchema.columns
+\end{schema}
+
+\begin{schema}{initMappingForRemoveParent}
+  \Xi ENTITIES \\
+  \Xi DATABASE \\
+  map? : MAPPING \\
+  cts? : TABLESCHEMA \\
+  c? : CLASS \\
+  %inner declarations
+  name, l, label : LABEL \\
+  c, d : CLASS \\
+  ts, sourceSchema, targetSchema : TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  primKey : PRIMARYKEY \\
+  columns : \power COLUMN \\
+  tables : \power TABLESCHEMA \\
+  col : COLUMN \\
+  atts : \power ATTRIBUTE \\
+\where
+ 	\forall mp : MAPPINGPAIR; dv : DATAVALUES @
+  		mp \in map?.pairs \iff mp.source.definition = dv.definition \land mp.target.key = mp.source.key \land 
+  	\forall cv : COLUMNVALUE; fkv : FOREIGNKEYVALUE @ 
+  		cv \in mp.target.colValues \iff cv.definition \in cts?.columns \land
+  	 	fkv \in mp.target.foreignkeyValues \iff 
+  	 		\exists a : ASSOCIATION; fk : FOREIGNKEY @ 
+  	 			a \in associationsOf(c?,  \theta{ENTITIES}) \land assocToFkORM[a/a?, fk/fk!] \land 
+  	 			fk = fkv.definition 
+\end{schema}
+
+
+\begin{schema}{initMappingForExtractParent}
+  \Xi ENTITIES \\
+  map! : MAPPING \\
+  parent?, child? : CLASS \\
+  tsc, tsp : TABLESCHEMA \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[child?/c?, tsc/ts!] \\
+  entityToTableORM[parent?/c?, tsp/ts!] \\
+  \forall dvc : DATAVALUES; m : MAPPINGPAIR @ \\
+  	\;\;\; dvc.definition = tsc \land m \in map!.pairs \iff \\
+  	\;\;\; m.source = dvc \land \exists dvp : DATAVALUES @ dvp.key = dvc.key \\
+  	\;\;\;\;\;\; \land dvp.definition = tsp
+  	\land m.target = dvp
+\end{schema}
+
+ \begin{schema}{changeReferenceValueInForeignKeyValueDB} 
+  \Delta DATABASE \\
+  old?, new? : FOREIGNKEY \\
+  %inner declarations
+  fkv, fkv' : FOREIGNKEYVALUE \\
+\where
+  \forall dv, dv' : DATAVALUES; fkv : FOREIGNKEYVALUE @ \\
+    \;\;\;    dv \in values \land fkv.definition = old? \implies \\
+    \;\;\;  fkv'.definition = new? \land \\
+\;\;\;      fkv'.value = fkv.value \land \\
+    \;\;\;  dv'.foreignkeyValues = dv.foreignkeyValues \setminus \{ fkv \} \cup \{ fkv' \} \land \\
+\;\;\;      values' = values \setminus \{ dv \} \cup \{ dv' \}
+\end{schema}
+
+\begin{schema}{changeForeignKeyReferenceDB}
+  \Delta DATABASE \\  
+  newReference?, oldReference? : TABLESCHEMA \\  
+  %inner declarations
+  label : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  source : TABLESCHEMA \\
+  fk1, fk2 : FOREIGNKEY \\
+  fkv, fkv' : FOREIGNKEYVALUE \\
+\where
+  \forall ts : TABLESCHEMA; fk : FOREIGNKEY @ \\
+    ts \in schemas \land fk.source = ts \land \\
+    fk.reference = oldReference? \land \\
+    label = fk.label  \land \\
+      constraints = fk.constraints \land \\
+      source = fk.source \land \\
+    initForeignKey[label/l?, constraints/constraints?, source/source?,\\
+    \;\;\;\;\;\; newReference?/reference?, fk1/fk!] \pipe \\ 
+    addForeignKeyDB[fk1/fk?] \pipe \\
+    changeReferenceValueInForeignKeyValueDB[fk/old?, fk1/new?] \pipe \\
+    dropForeignKeyDB[fk/fk?]
+\end{schema}
+
+\begin{schema}{changeAllReferencesInTable} %change key starting in X so it references Y
+  \Delta DATABASE \\
+  ts? : TABLESCHEMA \\
+  target? : TABLESCHEMA \\
+  map? : MAPPING \\
+\where
+  \forall fk : FOREIGNKEY @\\
+  \;\;\;  fk \in foreignKeys \land fk.source = ts? \implies \\
+  \;\;\;  changeFKreferenceDB[fk/fk?, target?/targetSchema?] 
+\end{schema}
+
+\begin{axdef}
+  isInstanceOf : DATAVALUES \cross CLASS \fun BOOL
+\where
+    \forall dv : DATAVALUES; c : CLASS @ \\
+  \;\;\; (isInstanceOf(dv, c) =  True \iff \exists cv : COLUMNVALUE @ \\
+  \;\;\;\;\;\; cv.definition.label = INSTANCEDEF \land cv.value = c.label ) \lor \\
+  	 \;\;\; (isInstanceOf(dv, c) =  False \iff \forall cv : COLUMNVALUE @ \\
+    \;\;\;\;\;\; cv.definition.label = INSTANCEDEF \land cv.value \neq c.label)
+\end{axdef}
+
+
+\begin{zsection}
+  \SECTION Refactorings \parents RefactoringHelpers
+\end{zsection}
+
+
+
+\begin{schema}{addAttribute}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  %inner childs declatation
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  poc : ATTRIBUTEOfCLASS\\
+  primKey, primKey' : PRIMARYKEY \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[ts/ts!] \\
+  p?.optional = True \implies selectAllData(ts, \theta(DATABASE)) \neq \emptyset \\
+  addAttributeEL \\
+  (p?.upper = One \implies attributeToColumnORM \pipe addColumnDB)  \\ 
+  (p?.upper = Many \implies attributeToTableORM \pipe addTableDB)
+\end{schema}
+
+
+
+
+
+\begin{schema}{addAssociation}
+   \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  a? : ASSOCIATION \\
+  c? : CLASS \\
+  map? : MAPPING \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, sourceSchema, targetSchema, table : TABLESCHEMA \\
+  l, name : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  fk1, fk2 : FOREIGNKEY \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[ts/ts!] \\  
+  a?.optional = True \implies selectAllData(ts, \theta(DATABASE)) \neq \emptyset \\
+  addAssociationEL \pipe \\
+  [|a?.upper = One \implies assocToFkORM \pipe (addForeignKeyDB \pipe insertDataToFKDB)   \lor \\
+  a?.upper = Many \implies assocToTableORM \pipe (addTableDB \pipe insertDataToMapTableDB)] \\
+\end{schema}
+
+
+\begin{schema}{addClass}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c? : CLASS \\
+  att? : \power ATTRIBUTE \\
+  %inner childs declatation
+  label, label' : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  columns, columns' : \power COLUMN \\
+  poc : ATTRIBUTEOfCLASS \\
+  primKey' : PRIMARYKEY \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  addEntityEL \pipe entityToTableORM \pipe addTableDB \pipe
+  [| \forall p : ATTRIBUTE @ p \in atts \implies addAttribute[p/p?]]
+\end{schema}
+
+\begin{schema}{removeAttribute}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  %inner child declarations
+  poc : ATTRIBUTEOfCLASS \\
+  constraints : \power CONSTRAINT \\
+  col : COLUMN \\
+\where
+  removeAttributeEL \\
+  (p?.upper = One \land attributeToColumnORM \pipe dropColumnDB) \lor \\
+  (p?.upper = Many \land attributeToTableORM \pipe dropTableDB)
+\end{schema}
+
+ \begin{schema}{removeAttributeWithNoData}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  %inner child declarations
+  poc : ATTRIBUTEOfCLASS \\
+  constraints : \power CONSTRAINT \\
+  col : COLUMN \\
+\where
+  removeAttributeEL \\
+  (p?.upper = One \land attributeToColumnORM \pipe dropEmptyColumnDB) \lor \\
+  (p?.upper = Many \land attributeToTableORM \pipe dropEmptyTableDB)
+\end{schema}
+
+\begin{schema}{removeClass}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c? : CLASS \\
+  %inner childs declatation
+  label : LABEL \\
+  primKey, primKey' : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  poc : ATTRIBUTEOfCLASS \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+%todo uncoment
+%  (\forall p : ATTRIBUTE @ \\
+%  \;\;\;  p \in attributesOf(c?, \theta(ENTITIES)) \implies \\  \;\;\;\;\;\; removeAttribute[p/p?]) \pipe
+  removeEntityEL \pipe 
+  entityToTableORM \pipe dropTableDB
+\end{schema}
+
+\begin{schema}{removeClassWithNoInstances}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c? : CLASS \\
+   %inner childs declatation
+  label : LABEL \\
+  primKey, primKey' : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  poc : ATTRIBUTEOfCLASS \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  entityToTableORM[ts/ts!] \\
+  selectAllData(ts, \theta{DATABASE}) = \emptyset \\
+  removeEntityEL \\
+  entityToTableORM \pipe dropEmptyTableDB
+\end{schema}
+
+\begin{schema}{removeAssociation}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  a? : ASSOCIATION \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, sourceSchema, targetSchema, table : TABLESCHEMA \\
+  l, name : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  fk1, fk2 : FOREIGNKEY \\
+\where
+  removeAssociationEL \\
+  a?.upper = One \implies assocToFkORM \pipe dropForeignKeyDB  \lor \\
+  a?.upper = Many \implies assocToTableORM \pipe dropTableDB \\
+\end{schema}
+
+\begin{schema}{removeAssociationWithNoData}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  a? : ASSOCIATION \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, sourceSchema, targetSchema, table : TABLESCHEMA \\
+  l, name : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  c, d, sourceCLASS, targetCLASS : CLASS \\
+  fk1, fk2 : FOREIGNKEY \\
+\where
+  removeAssociationEL \\
+  a?.upper = One \implies assocToFkORM \pipe dropEmptyForeignKeyDB  \lor \\
+  a?.upper = Many \implies assocToTableORM \pipe dropEmptyTableDB \\
+\end{schema}
+
+\begin{schema}{moveAttribute}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c? : CLASS \\ %target class
+  d? : CLASS \\ %source class
+  p? : ATTRIBUTE \\
+  map? : MAPPING \\ 
+  %inner declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, targetSchema', ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  to : TABLESCHEMA \\
+  poc : ATTRIBUTEOfCLASS \\
+  primKey, primKey' : PRIMARYKEY \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  l = p?.label \\
+  c? \neq d? \\
+  d? \notin \ran (childParentRelation(c?, \theta{ENTITIES})\plus) \\
+  c? \notin \ran (childParentRelation(d?, \theta{ENTITIES})\plus) \\
+  entityToTableORM[ts/ts!] \\
+  entityToTableORM[d?/c?, to/ts!] \\
+  (p?.upper = One \implies \\ 
+  \;\;\; addAttribute \pipe attributeToColumnORM[col/col!]  \pipe \\
+  \;\;\;(copyColumnDB[col/col?, ts/sourceSchema?, to/targetSchema?] \pipe \\ 
+  \;\;\; dropColumnDB[col/col?]) ) \lor \\
+  (p?.upper = Many \implies \\  
+  \;\;\; addAttribute \pipe attributeToTableORM \pipe \\
+  \;\;\; changeAllReferencesInTable[to/target?] \pipe removeAttribute[d?/c?])
+\end{schema}
+
+\begin{schema}{inlineClass}
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  \Delta SOFTWARE \\
+  \Delta ASSOCIATION \\
+  c? : CLASS \\
+  d? : CLASS \\
+  map? : MAPPING \\
+  %inner
+  poc : ATTRIBUTEOfCLASS \\
+  to : TABLESCHEMA \\
+  atts : \power ATTRIBUTE \\
+  primKey : PRIMARYKEY \\
+  tables : \power TABLESCHEMA \\
+  columns, columns' : \power COLUMN \\
+  col : COLUMN \\
+  ts, targetSchema, targetSchema', ts!, tso, sourceSchema, table : TABLESCHEMA \\
+  l, name : LABEL \\
+  constraints : \power CONSTRAINT \\
+  primKey, primKey' : PRIMARYKEY \\
+  fk, fk1, fk2 : FOREIGNKEY\\
+  c, d, sourceCLASS, targetCLASS : CLASS\\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  c? \in classes \land d? \in classes \land c? \neq d? \\
+  parentOf(c?, \theta{ENTITIES}) = NULLCLASS \\
+  children(c?, \theta{ENTITIES}) = \emptyset \\
+  \#attributesOf(c?, \theta(ENTITIES)) = 1 \\
+  \forall a : ASSOCIATION @ a.source \neq c? \\
+  \forall q, r : ATTRIBUTE @ \\
+  \;\;\; q \in attributesOf(c?, \theta(ENTITIES)) \land \\
+  \;\;\; r \in  attributesOf(d?, \theta(ENTITIES))  \implies q.label \neq r.label \\
+  \forall a, b : ASSOCIATION @ \\
+  \;\;\; a.source = c? \land \\
+  \;\;\; b.source = d?  \implies a.label \neq b.label \\
+  [|\forall p : ATTRIBUTE @ \\
+  \;\;\; p \in attributesOf(c?, \theta(ENTITIES)) \implies \\ 
+  \;\;\;\;\; moveAttribute[p/p?] ] \pipe \\ 
+  [|\forall a : ASSOCIATION @ \\
+  \;\;\; a.target = c? \implies changeAssociationDirectionEL[d?/target?, a/a?] \land \\
+  \;\;\;\;\;\; changeReferenceInDB[a/a?, d?/target?] \\ 
+  removeClass ]
+\end{schema}
+
+
+\begin{schema}{splitClass}
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  \Delta TABLESCHEMA \\
+  \Delta SOFTWARE \\
+  l? : LABEL \\
+  p? : ATTRIBUTE \\
+  toSplit? : CLASS \\
+  %inner childs declatation
+  label, l : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, oldSchema, newSchema, targetSchema' : TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  g : CLASS \\
+  poc : ATTRIBUTEOfCLASS \\
+  to : TABLESCHEMA \\
+  atts, att : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  initEntity[g/c!] \\
+  att = \emptyset \\
+  addClass[g/c?, att/att?] \pipe initMappingForSplit[toSplit?/old?, g/new?] \pipe \\ 
+  moveAttribute[toSplit?/d?, g/c?] 
+\end{schema}
+
+\begin{schema}{mergeClasses}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\ 
+  c?, c_2? : CLASS \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts2, ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  s : SEQUENCE \\
+  a : \power DATAVALUES \\
+  atts : \power ATTRIBUTE \\
+  primKey' : PRIMARYKEY \\
+  poc : ATTRIBUTEOfCLASS \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  attributesOf(c?, \theta{ENTITIES}) = attributesOf(c_2?, \theta{ENTITIES}) \\
+  associationsOf(c?, \theta{ENTITIES}) = associationsOf(c_2?, \theta{ENTITIES}) \\
+  parentOf(c?, \theta{ENTITIES}) = parentOf(c_2?, \theta{ENTITIES})	\\
+  parentOf(c?, \theta{ENTITIES}) = NULLCLASS \\
+  children(c?, \theta{ENTITIES}) = children(c_2?, \theta{ENTITIES})	\\
+  children(c?, \theta{ENTITIES}) = \emptyset \\ 
+  \forall a : ATTRIBUTE @  \\
+  \;\;\; a \in attributesOf(c?, \theta{ENTITIES}) \iff a.upper = One \\	
+  isReferenced(c?,\theta{ENTITIES}) = \emptyset \\
+  isReferenced(c_2?,\theta{ENTITIES}) = \emptyset \\  
+  entityToTableORM[ts/ts!] \\
+  entityToTableORM[c_2?/c?, ts2/ts!] \\ 
+  % no key collision
+  [|\forall k, k_2, k_2' : DATAVALUES @ \\
+  \;\;\; k.definition = ts \land k_2.definition = ts2 \land k \in values \land k_2 \in values \\
+  \;\;\; \land k.key \neq k_2.key \implies 
+  (k_2'.definition = ts \land k_2' \notin values \land k_2' \in values' \land \\ 
+  \;\;\; k \notin values')  \lor \\
+  % if key collisions
+  (\forall k, k_2, k_2' : DATAVALUES @ \\
+  \;\;\; k.definition = ts \land k_2.definition = ts2 \land k \in values \land k_2 \in values \\
+  \;\;\; \land k.key = k_2.key \implies
+  k_2'.definition = ts \land k_2'.key.value = next(sequence) )] \pipe\\
+  removeClass[c_2?/c?] \\
+\end{schema}
+
+\begin{schema}{extractClass}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c?, d : CLASS \\
+  p? : ATTRIBUTE \\
+  l? : LABEL \\
+  %iner declarations  
+  l : LABEL \\
+  u : CARDINALITY \\
+  o : BOOL \\
+  label, l, label', name : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, oldSchema, newSchema, targetSchema', sourceSchema, targetSchema, table : TABLESCHEMA \\
+  constraints : \power CONSTRAINT \\
+  g, c, sourceCLASS, targetCLASS : CLASS \\
+  poc : ATTRIBUTEOfCLASS \\
+  to : TABLESCHEMA \\
+  atts, att : \power ATTRIBUTE\\
+  primKey' : PRIMARYKEY\\
+   a :  ASSOCIATION \\
+   fk1, fk2 : FOREIGNKEY \\
+   col2  :  COLUMN \\
+  type : DTYPE \\
+  map : MAPPING
+\where
+  l = p?.label  \\
+  u = p?.upper  \\
+  o = p?.optional \\
+  splitClass[c?/toSplit?, d/g] \pipe \\
+  initAssociation[l/label?, u/upper?, o/optional?, c?/source?, d/target?, a/a!] \pipe
+  initMappingForSplit[c?/old?, g/new?]  \pipe \\
+  addAssociation[a/a?]	
+\end{schema}
+
+\begin{schema}{addParent}
+  \Delta ENTITIES \\
+  i? : INHERITANCE \\
+  map? : MAPPING \\ 
+  \Delta SOFTWARE \\
+  \Delta DATABASE \\ 
+  %inner declarations
+    parent, child : CLASS \\
+    e : ENTITIES  \\
+    s : SEQUENCE \\
+    a : \power DATAVALUES \\
+    atts : \power ATTRIBUTE \\
+    to, cts, pts, sourceSchema, targetSchema, targetSchema' : TABLESCHEMA \\
+  poc : ATTRIBUTEOfCLASS \\
+  label, label' : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  primKey' : PRIMARYKEY\\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+   i?.parent = parent \\
+  i?.child = child \\
+  children(child, \theta{ENTITIES}) = \emptyset \\
+  entityToTableORM[child/c?, cts/ts!] \\
+  entityToTableORM[parent/c?, pts/ts!] \\
+  children(parent, \theta{ENTITIES}) = \emptyset \implies
+  \;\;\;\;\;\;    [|constraints = \{ NOTNULL \} \land \\
+  \;\;\; initColumn[INSTANCEDEF/l?, constraints/constraints? ] \pipe addColumnDB[pts/ts?]  ]\pipe \\
+  addEntityParentEL \pipe
+  [|\forall c : COLUMN @ c \in cts.columns \implies \\
+    \;\;\;  copyColumnDB[col/col?, cts/sourceSchema?, pts/targetSchema?] \pipe \\
+    \;\;\; dropColumnDB[col/col?, cts/ts?]] \pipe  \\ 
+  [|\forall fk : FOREIGNKEY; ts : TABLESCHEMA @ \\
+    \;\;\; fk \in foreignKeys \land ts = fk.source \implies \\
+    \;\;\;  changeAllReferencesInTable[to/target?, ts/ts?] \pipe \\
+    dropTableDB[cts/ts?]] 
+\end{schema}
+
+\begin{schema}{removeParent}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  c?: CLASS \\
+  %inner child declarations
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts!, targetSchema', table : TABLESCHEMA \\
+  l : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  map, me : MAPPING \\ 
+  poc : ATTRIBUTEOfCLASS \\
+  to, cts, pts, tso : TABLESCHEMA \\
+  atts : \power ATTRIBUTE \\
+  d, parent, sourceCLASS, targetCLASS, c : CLASS \\
+  label' : LABEL \\
+  primKey' : PRIMARYKEY \\
+  columns' : \power COLUMN \\
+  label, name : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  source, sourceSchema, targetSchema : TABLESCHEMA \\
+  fk1, fk2, fk : FOREIGNKEY \\
+  fkv, fkv' : FOREIGNKEYVALUE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\ 
+\where
+  children(c?, \theta{ENTITIES}) = \emptyset \\
+  parent = parentOf(c?, \theta{ENTITIES}) \\
+  removeEntityParentEL \pipe 
+  entityToTableNoAttributesORM[cts/ts!] \pipe 
+  addTableDB[cts/ts?] \pipe
+  entityToTableORM[parent/c?, pts/ts!] \pipe 
+  initMappingForRemoveParent[map/map?, cts/cts?] \pipe 
+  [|\forall c : COLUMN @ (c \in pts.columns \land
+  	\;\;\; \exists p : ATTRIBUTE @ p \in attributesOf(c?, \theta{ENTITIES}) \land attributeToColumnORM[p/p?, c/col!]) \implies \\
+    \;\;\;  copyColumnDB[col/col?, pts/sourceSchema?, cts/targetSchema?, map/map?] \pipe \\
+    \;\;\; dropColumnDB[col/col?, pts/ts?]  ] \pipe \\
+  [|\forall t : TABLESCHEMA @ 
+  	\;\;\; \exists p : ATTRIBUTE @ p \in attributesOf(c?, \theta{ENTITIES}) \land attributeToTableORM[p/p?, t/ts!] \implies \\
+    \;\;\;  changeReferenceTableDB[t/ts?, c?/newTarget?, parent/oldTarget?, me/map?] ] \pipe    
+  [|\forall a : ASSOCIATION @
+  	\;\;\; a \in associationsTargeting(c?, \theta{ENTITIES}) \implies 
+  	\;\;\;\;\;\; ( a.upper = One \implies assocToFkORM[a/a?] \pipe changeFKreferenceDB[cts/targetSchema?, me/map?]) \lor 
+  	\;\;\;\;\;\; ( a.upper = Many \implies assocToTableORM[a/a?] \pipe changeReferenceTableDB[c?/newTarget?, parent/oldTarget?, me/map?])] \pipe \\
+  [col : COLUMN |children(parent, \theta{ENTITIES}) = \emptyset \implies col.label = INSTANCEDEF \land  dropColumnDB[col/col?] ] 
+\end{schema}
+
+ \begin{schema}{pushDown}
+  \Delta ENTITIES \\
+  \Delta CLASS \\
+  p? : ATTRIBUTE \\
+  c : CLASS \\
+  poc : ATTRIBUTEOfCLASS
+\where
+  pushAttributeDownEL
+\end{schema}
+
+\begin{schema}{pushAttributeDownToClass}
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  \Delta CLASS \\
+  \Delta CLASS \\
+  p? : ATTRIBUTE \\
+  % inner declarations
+  parent, parent', child, child' : CLASS \\
+  poc : ATTRIBUTEOfCLASS \\
+  tab : TABLESCHEMA \\
+  primKey : PRIMARYKEY \\
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns : \power COLUMN \\
+  col, col2  :  COLUMN \\
+  type : DTYPE \\ 
+  ts, ts! : TABLESCHEMA \\
+  l : LABEL\\
+  constraints : \power CONSTRAINT \\
+\where
+  parent = \theta(CLASS) \\
+  parent' = \theta(CLASS)' \\
+  parent \in classes \\
+  child = \theta(CLASS) \\
+  child' = \theta(CLASS)' \\
+  child \in classes \\
+  p? \in attributesOf(parent, \theta(ENTITIES)) \\
+  parent = parentOf(child, \theta(ENTITIES)) \\
+  addAttributeEL[child/c?] \pipe \\
+  removeAttributeEL[parent/c?] \pipe \\
+  [|(p?.upper = One \implies 
+  	\;\;\;\forall dv, dv' : DATAVALUES @ \\
+    \;\;\;\;\;\;  		entityToTableORM[parent/c?, tab/ts!] \land \\	\;\;\;\;\;\; isInstanceOf(dv, child) \neq True \implies attributeToColumnORM[col/col!] \land \\
+  	\;\;\;\;\;\;\;\;\;	dv'.colValues = dv.colValues \setminus \{ cv : COLUMNVALUE | \\ 
+  	\;\;\;\;\;\;\;\;\;\;\;\; cv.definition = col \} 
+  		)]
+\end{schema}
+
+\begin{schema}{pullUp}
+  \Delta ENTITIES \\
+  \Delta CLASS \\
+  parent? : CLASS \\
+  p? : ATTRIBUTE \\
+  poc : ATTRIBUTEOfCLASS\\
+  c, d : CLASS
+\where
+  p?.optional = True \implies \#children(parent?, \theta{ENTITIES}) = 1 \\
+  pullAttributeUpEL
+\end{schema}
+
+\begin{schema}{pullCommonAttributeUp}
+  \Delta ENTITIES \\
+  c? : CLASS \\
+  p? : ATTRIBUTE \\
+  poc : ATTRIBUTEOfCLASS\\
+  c_p, c : CLASS \\
+  cs : \power CLASS \\
+\where
+  c_p = parentOf(c?,\theta(ENTITIES)) \\
+  cs = \{ c : CLASS | p? \in attributesOf(c, \theta(ENTITIES)) \land \\
+  \;\;\; c \in children(c_p,\theta(ENTITIES)) \} \\
+  addAttributeEL[c/c?] \\
+  \forall c : CLASS @ \\
+  \;\;\; c \in cs \implies removeAttributeEL[c/c?]
+\end{schema}
+
+\begin{schema}{extractParent}
+  \Delta SOFTWARE \\
+  \Delta ENTITIES \\
+  \Delta DATABASE \\
+  parent, child?, child : CLASS \\ 
+  l? : LABEL \\
+  p? : ATTRIBUTE \\
+  %inner child declarations
+  e : ENTITIES  \\
+  s : SEQUENCE \\
+  a : \power DATAVALUES \\
+  poc : ATTRIBUTEOfCLASS\\
+  atts : \power ATTRIBUTE \\
+  to : TABLESCHEMA \\
+  cts, pts : TABLESCHEMA \\
+  tsc, tsp, sourceSchema, targetSchema, targetSchema' : TABLESCHEMA \\
+  label : LABEL \\
+  primKey : PRIMARYKEY \\
+  atts : \power ATTRIBUTE \\
+  schemas, schemas', tables : \power TABLESCHEMA \\
+  foreignKeys, foreignKeys' : \power FOREIGNKEY \\
+  values, values' : \power DATAVALUES \\
+  sequence, sequence' : SEQUENCE \\
+  columns, columns' : \power COLUMN \\
+  col :  COLUMN \\
+  ts, ts! : TABLESCHEMA \\
+  l, label' : LABEL\\ 
+  constraints : \power CONSTRAINT \\
+  primKey' : PRIMARYKEY \\
+  c, d : CLASS \\
+  att : \power ATTRIBUTE \\
+  col2  :  COLUMN \\
+  type : DTYPE \\
+\where
+  parentOf(child?, \theta(ENTITIES)) = NULLCLASS \\
+  p? \in attributesOf(child?, \theta(ENTITIES)) \\
+  att = \emptyset \\
+  initEntity[parent/c!] \\
+  addClass[parent/c?, att/att?] \pipe initInheritance \pipe \\
+  initMappingForExtractParent[parent/parent?] \pipe \\
+  addParent[parent/parent?] \pipe pullUp[parent/parent?]
+\end{schema}
