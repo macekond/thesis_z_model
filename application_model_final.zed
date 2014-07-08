@@ -705,7 +705,6 @@
 \begin{schema}{MappingIsSimple}
     \Xi DATABASE \\
  	map? : MAPPING \\
-    m? : MAPPING \\
   \where
     \forall dvs, dvt : DATAVALUES; m, m_2 : MAPPINGPAIR @ \\
          \;\;\; dvs \in values \land dvt \in values \land m \in map?.pairs \land 
@@ -1294,6 +1293,11 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
 \end{schema}
 
 \begin{axdef}
+  ERRSOFTWARE : SOFTWARE
+\end{axdef}
+
+
+\begin{axdef}
  \Xi SOFTWARE \\
  \Xi ENTITIES \\
   \Xi ENTITIES \\
@@ -1492,7 +1496,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
 \begin{schema}{initMappingForRemoveParent}
   \Xi ENTITIES \\
   \Xi DATABASE \\
-  map? : MAPPING \\
+  map! : MAPPING \\
   cts? : TABLESCHEMA \\
   c? : CLASS \\
   %inner declarations
@@ -1507,7 +1511,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   atts : \power ATTRIBUTE \\
 \where
  	\forall mp : MAPPINGPAIR; dv : DATAVALUES @
-  		mp \in map?.pairs \iff mp.source.definition = dv.definition \land mp.target.key = mp.source.key \land 
+  		mp \in map!.pairs \iff mp.source.definition = dv.definition \land mp.target.key = mp.source.key \land 
   	\forall cv : COLUMNVALUE; fkv : FOREIGNKEYVALUE @ 
   		cv \in mp.target.colValues \iff cv.definition \in cts?.columns \land
   	 	fkv \in mp.target.foreignkeyValues \iff 
@@ -1537,9 +1541,11 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   constraints : \power CONSTRAINT \\
   col2  :  COLUMN \\
   type : DTYPE \\
+  m : MAPPINGPAIR\\
 \where
   entityToTableORM[child?/c?, tsc/ts!] \\
   entityToTableORM[parent?/c?, tsp/ts!] \\
+  MappingIsSimple[map!/map?] \land MappingFullComplete[map!/map?] \\
   \forall dvc : DATAVALUES; m : MAPPINGPAIR @ \\
   	\;\;\; dvc.definition = tsc \land m \in map!.pairs \iff \\
   	\;\;\; m.source = dvc \land \exists dvp : DATAVALUES @ dvp.key = dvc.key \\
@@ -2155,7 +2161,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   entityToTableNoAttributesORM[cts/ts!] \pipe 
   addTableDB[cts/ts?] \pipe
   entityToTableORM[parent/c?, pts/ts!] \pipe 
-  initMappingForRemoveParent[map/map?, cts/cts?] \pipe 
+  initMappingForRemoveParent[map/map!, cts/cts?] \pipe 
   [|\forall c : COLUMN @ (c \in pts.columns \land
   	\;\;\; \exists p : ATTRIBUTE @ p \in attributesOf(c?, \theta{ENTITIES}) \land attributeToColumnORM[p/p?, c/col!]) \implies \\
     \;\;\;  copyColumnDB[col/col?, pts/sourceSchema?, cts/targetSchema?, map/map?] \pipe \\
@@ -2284,6 +2290,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   att : \power ATTRIBUTE \\
   col2  :  COLUMN \\
   type : DTYPE \\
+  m : MAPPINGPAIR \\
 \where
   parentOf(child?, \theta(ENTITIES)) = NULLCLASS \\
   p? \in attributesOf(child?, \theta(ENTITIES)) \\
@@ -2292,4 +2299,99 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   addClass[parent/c?, att/att?] \pipe initInheritance \pipe \\
   initMappingForExtractParent[parent/parent?] \pipe \\
   addParent[parent/parent?] \pipe pullUp[parent/parent?]
+\end{schema}
+
+\begin{zsection}
+  \SECTION versioning \parents Refactorings
+\end{zsection}
+
+\begin{zed}
+  [ TRANSFORMATION ]
+\end{zed}
+
+
+\begin{schema}{GENERALOPVCS}
+  initial : SOFTWARE \\
+  transformations : \seq TRANSFORMATION \\
+\where
+  initial \neq ERRSOFTWARE 
+\end{schema}
+
+\begin{schema}{OPERATIONBASEDVCS}
+  current : SOFTWARE \\
+  transformations : \seq TRANSFORMATION \\
+\end{schema}
+
+\begin{schema}{updateDataDB}
+    \Delta DATABASE \\
+    original? : \power DATAVALUES \\
+    new? : \power DATAVALUES
+    \where
+    values' = (values \setminus original? ) \cup new? 
+\end{schema}
+
+\begin{schema}{updateDataDBInverse}
+    \Delta DATABASE \\
+    original? : DATAVALUES \\
+    new? : DATAVALUES
+    \where
+    values' = values \setminus \{ new? \} \cup \{ original? \}
+\end{schema}
+
+\begin{schema}{OPVCSWITHBRANCHES}
+  branches : \power OPERATIONBASEDVCS \\ 
+\where
+  \forall b_1, b_2 : OPERATIONBASEDVCS; tt, tt_1, tt_2 : \seq TRANSFORMATION  @ \\ 
+  \;\;\; b_1 \in branches \land b_2 \in branches \implies  \\
+  \;\;\; tt  \cat tt_1 = b_1.transformations \land tt \cat tt_2 = b_2.transformations
+\end{schema} 
+
+\begin{schema}{initOPVCSWITHBRANCHES}
+  OPVCSWITHBRANCHES \\
+  ovcs : OPERATIONBASEDVCS \\
+\where
+  ovcs.transformations = \langle  \rangle \\
+  branches = \{ ovcs \}
+\end{schema}  
+
+\begin{schema}{newBranch}
+  \Delta OPVCSWITHBRANCHES \\
+  ovcs  : OPERATIONBASEDVCS
+\where
+  branches' = branches \cup \{ ovcs \} 
+\end{schema}
+
+\begin{schema}{remBranch}
+   \Delta OPVCSWITHBRANCHES \\
+   ovcs  : OPERATIONBASEDVCS
+\where
+   branches' = branches \setminus \{ ovcs \}
+\end{schema}
+
+ \begin{axdef}
+    areTransformationsEquivalent : \\
+    \;\; OPERATIONBASEDVCS \cross OPERATIONBASEDVCS \fun BOOL
+    \where
+    \forall o_1, o_2 : OPERATIONBASEDVCS @ \\
+    \;\;\; areTransformationsEquivalent(o_1, o_2) = True \iff \\
+    \;\;\;\;\; o_1.current.entities = o_2.current.entities \lor \\
+    \;\;\; areTransformationsEquivalent(o_1, o_2) = False \iff \\
+    \;\;\;\;\; o_1.current.entities \neq o_2.current.entities    
+    \end{axdef}
+
+    \begin{axdef}
+    areDataEquivalent : \\
+    \;\; OPERATIONBASEDVCS \cross OPERATIONBASEDVCS \fun BOOL
+    \where
+    \forall o_1, o_2 : OPERATIONBASEDVCS @ \\
+    \;\;\; areDataEquivalent(o_1, o_2) = True \iff \\
+    \;\;\;\;\;  o_1.current.database.values =  o_2.current.database.values \lor \\
+    \;\;\; areDataEquivalent(o_1, o_2) = False \iff \\
+    \;\;\;\;\;  o_1.current.database.values \neq o_2.current.database.values
+    \end{axdef}
+
+\begin{schema}{isAncestor}
+    pred, anc : OPERATIONBASEDVCS 
+    \where
+    pred.transformations \prefix anc.transformations
 \end{schema}
