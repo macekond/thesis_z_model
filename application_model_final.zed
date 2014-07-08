@@ -7,8 +7,10 @@
 \end{zed}
 
 \begin{zed}
-	[LABEL]
+	[LABEL] 
 \end{zed}
+
+
 
 \begin{zsection}
   \SECTION ApplicationModel \parents Types
@@ -169,10 +171,10 @@
 \end{axdef}
 
 \begin{axdef}
-	parentChildRelation : CLASS \cross ENTITIES \fun \power CLASS \fun CLASS
+	parentChildRelation : CLASS \cross ENTITIES \fun CLASS \fun CLASS
 \where
 	\forall c_c, c_p : CLASS; s : ENTITIES @  \\
-		c_c \mapsto c_p  \in childParentRelation(c_p, s) \iff c_p =  parentOf(c_c, s)
+	\;\;\;	c_c \mapsto c_p \in parentChildRelation(c_p, s) \iff c_p =  parentOf(c_c, s)
 \end{axdef}
 
 \begin{axdef}
@@ -1349,6 +1351,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
   d : CLASS \\
   col2  :  COLUMN \\
   type : DTYPE \\
+  map : MAPPING
 \where
   d = parentOf(c?, entities) \\
   entityToTableORM[d/c?, pts/ts!] \\
@@ -2076,7 +2079,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
     s : SEQUENCE \\
     a : \power DATAVALUES \\
     atts : \power ATTRIBUTE \\
-    to, cts, pts, sourceSchema, targetSchema, targetSchema' : TABLESCHEMA \\
+    cts, pts, sourceSchema, targetSchema, targetSchema' : TABLESCHEMA \\
   poc : ATTRIBUTEOfCLASS \\
   label, label' : LABEL \\
   primKey : PRIMARYKEY \\
@@ -2108,7 +2111,7 @@ parentOf(c?, \theta(ENTITIES)) = NULLCLASS  \\
     \;\;\; dropColumnDB[col/col?, cts/ts?]] \pipe  \\ 
   [|\forall fk : FOREIGNKEY; ts : TABLESCHEMA @ \\
     \;\;\; fk \in foreignKeys \land ts = fk.source \implies \\
-    \;\;\;  changeAllReferencesInTable[to/target?, ts/ts?] \pipe \\
+    \;\;\;  changeAllReferencesInTable[pts/target?, ts/ts?] \pipe \\
     dropTableDB[cts/ts?]] 
 \end{schema}
 
